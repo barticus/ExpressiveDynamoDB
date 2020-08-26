@@ -9,5 +9,8 @@ namespace ExpressiveDynamoDB.Test
 
         [DynamoDBProperty("sk")]
         public string Name { get; set; }
+
+        [DynamoDBProperty("age")]
+        public int Age { get; set; }
     }
 }

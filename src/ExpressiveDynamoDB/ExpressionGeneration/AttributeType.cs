@@ -1,4 +1,4 @@
-namespace ExpressiveDynamoDB.QueryGeneration
+namespace ExpressiveDynamoDB.ExpressionGeneration
 {
     public enum AttributeType 
     {

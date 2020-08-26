@@ -14,13 +14,14 @@ namespace ExpressiveDynamoDB.Test
         private EntityMapper EntityMapper() => new EntityMapper(new DynamoDBContext(new AmazonDynamoDBClient()));
         
         [Test]
-        public void Test1()
+        public void ToDocument_BasicEntity()
         {
             // Arrange
             var entityMapper = EntityMapper();
             var input = new SampleEntity1{
                 Id = "test id",
-                Name = "hello there!"
+                Name = "hello there!",
+                Age = 28
             };
 
             // Act
@@ -28,15 +29,17 @@ namespace ExpressiveDynamoDB.Test
 
             // Assert
             var attributeMap = result.ToAttributeMap();
-            Assert.AreEqual(2, attributeMap.Count);
+            Assert.AreEqual(3, attributeMap.Count);
             Assert.IsTrue(attributeMap.ContainsKey("pk"));
             Assert.IsTrue(attributeMap.ContainsKey("sk"));
+            Assert.IsTrue(attributeMap.ContainsKey("age"));
             Assert.AreEqual(input.Id, attributeMap["pk"].S);
             Assert.AreEqual(input.Name, attributeMap["sk"].S);
+            Assert.AreEqual(input.Age.ToString(), attributeMap["age"].N);
         }
 
         [Test]
-        public void Test2()
+        public void FromDocument_BasicEntity()
         {
             // Arrange
             var entityMapper = EntityMapper();
