@@ -3,6 +3,11 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <Nullable>enable</Nullable>
+    <PackageId>AppLogger</PackageId>
+    <Version>0.0.1</Version>
+    <Authors>Bart Breen</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/barticus/ExpressiveDynamoDB</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
