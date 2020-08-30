@@ -4,8 +4,9 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <Nullable>enable</Nullable>
     <PackageId>ExpressiveDynamoDB</PackageId>
-    <Version>0.0.1</Version>
-    <Authors>Bart Breen</Authors>
+    <PackageDescription>A library to assist with the generation of DynamoDB Expressions</PackageDescription>
+    <Version>0.0.2</Version>
+    <Authors>barticus</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/barticus/ExpressiveDynamoDB</RepositoryUrl>
   </PropertyGroup>
