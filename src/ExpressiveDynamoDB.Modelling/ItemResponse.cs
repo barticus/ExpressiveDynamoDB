@@ -1,4 +1,4 @@
-namespace ExpressiveDynamoDB
+namespace ExpressiveDynamoDB.Modelling
 {
     public class ItemResponse<T>
     {

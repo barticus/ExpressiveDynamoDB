@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace ExpressiveDynamoDB.FieldTransformers
+namespace ExpressiveDynamoDB.Modelling
 {
     public static class ExpressionAttributeHelpers
     {

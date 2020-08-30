@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using Amazon.DynamoDBv2.Model;
-using ExpressiveDynamoDB.FieldTransformers;
+using ExpressiveDynamoDB.Modelling.FieldTransformers;
 
-namespace ExpressiveDynamoDB
+namespace ExpressiveDynamoDB.Modelling
 {
     public class GetItemRequestBuilder
     {

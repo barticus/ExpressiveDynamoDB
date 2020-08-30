@@ -8,8 +8,7 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class ExpressiveDynamoDBExtensions
     {
         public static IServiceCollection AddExpressiveDynamoDB(
-            this IServiceCollection serviceCollection,
-            string? defaultTableName = null
+            this IServiceCollection serviceCollection
         )
         {
             serviceCollection.TryAddScoped<IEntityMapper, EntityMapper>();

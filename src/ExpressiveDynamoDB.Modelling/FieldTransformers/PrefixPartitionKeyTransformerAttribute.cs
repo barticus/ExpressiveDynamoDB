@@ -1,18 +1,18 @@
 using System;
 using Amazon.DynamoDBv2.DocumentModel;
 
-namespace ExpressiveDynamoDB.FieldTransformers
+namespace ExpressiveDynamoDB.Modelling.FieldTransformers
 {
-    public class PrefixFieldTransformer : IFieldTransformer
+    public class PrefixPartitionKeyTransformerAttribute : PartitionKeyTransformerAttribute
     {
         private string Prefix { get; set; }
 
-        public PrefixFieldTransformer(string prefix)
+        public PrefixPartitionKeyTransformerAttribute(string prefix)
         {
             Prefix = prefix;
         }
 
-        public DynamoDBEntry Transform(DynamoDBEntry input)
+        public override DynamoDBEntry Transform(DynamoDBEntry input)
         {
             var sInput = (string)input;
             if (sInput == null)

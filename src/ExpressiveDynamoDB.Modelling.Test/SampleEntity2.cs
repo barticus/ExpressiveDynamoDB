@@ -1,6 +1,6 @@
-using ExpressiveDynamoDB.FieldTransformers;
+using ExpressiveDynamoDB.Modelling.FieldTransformers;
 
-namespace ExpressiveDynamoDB.Test
+namespace ExpressiveDynamoDB.Modelling.Test
 {
     [PrefixPartitionKeyTransformerAttribute("PARTITION")]
     [PrefixSortKeyTransformerAttribute("SORT")]

@@ -6,9 +6,9 @@ using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using System;
-using ExpressiveDynamoDB.FieldTransformers;
+using ExpressiveDynamoDB.Modelling.FieldTransformers;
 
-namespace ExpressiveDynamoDB
+namespace ExpressiveDynamoDB.Modelling
 {
     public interface ITable
     {

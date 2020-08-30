@@ -1,7 +1,7 @@
 
 using Amazon.DynamoDBv2;
 
-namespace ExpressiveDynamoDB
+namespace ExpressiveDynamoDB.Modelling
 {
     public class TableOptions
     {

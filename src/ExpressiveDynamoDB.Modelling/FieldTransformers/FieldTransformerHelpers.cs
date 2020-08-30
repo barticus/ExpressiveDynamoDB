@@ -1,7 +1,7 @@
 using System.Linq;
 using Amazon.DynamoDBv2.DocumentModel;
 
-namespace ExpressiveDynamoDB.FieldTransformers
+namespace ExpressiveDynamoDB.Modelling.FieldTransformers
 {
     public static class FieldTransformerHelpers
     {

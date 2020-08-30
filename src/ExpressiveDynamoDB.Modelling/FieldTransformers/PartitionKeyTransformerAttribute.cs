@@ -1,4 +1,4 @@
-namespace ExpressiveDynamoDB.FieldTransformers
+namespace ExpressiveDynamoDB.Modelling.FieldTransformers
 {
     public abstract class PartitionKeyTransformerAttribute : FieldTransformerAttribute
     { }

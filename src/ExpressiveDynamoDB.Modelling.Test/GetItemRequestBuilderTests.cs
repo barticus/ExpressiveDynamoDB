@@ -1,7 +1,7 @@
 using System.Linq;
 using NUnit.Framework;
 
-namespace ExpressiveDynamoDB.Test
+namespace ExpressiveDynamoDB.Modelling.Test
 {
     public class GetItemRequestBuilderTests
     {
