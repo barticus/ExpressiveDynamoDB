@@ -8,6 +8,7 @@ using ExpressiveDynamoDB.Extensions;
 using Ddb = Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2.Model;
 using Amazon.DynamoDBv2;
+using System.Text;
 
 namespace ExpressiveDynamoDB.ExpressionGeneration
 {
@@ -38,6 +39,11 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             }},
         };
 
+        private static readonly IReadOnlyDictionary<ExpressionType, string> JoinOperations = new Dictionary<ExpressionType, string>{
+            {ExpressionType.AndAlso, " AND "},
+            {ExpressionType.OrElse, " OR "},
+        };
+
         private static readonly IReadOnlyDictionary<AllowedOperations, IReadOnlyList<SupportedMethod>> SupportedMethodsMap = new Dictionary<AllowedOperations, IReadOnlyList<SupportedMethod>>{
             { AllowedOperations.ALL, new List<SupportedMethod>{
                 SupportedMethod.BetweenMethod,
@@ -52,6 +58,8 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
         };
 
         private readonly Dictionary<string, Condition> Conditions = new Dictionary<string, Condition>();
+        private readonly List<WorkingCondition> ProcessedWorkingConditions = new List<WorkingCondition>();
+        private readonly StringBuilder StringBuilder = new StringBuilder();
 
         private WorkingCondition? _workingCondition = null;
         private WorkingCondition? WorkingCondition
@@ -86,45 +94,69 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             return Conditions;
         }
 
-        public Ddb.ScanFilter AsScanFilter()
+        public Ddb.Expression GetGeneratedExpression()
         {
-            var sf = new Ddb.ScanFilter();
-            foreach (var kvp in Conditions)
+            var expression = new Ddb.Expression();
+            var statement = StringBuilder.ToString();
+            if(statement.First() == '(' && statement.Last() == ')')
             {
-                sf.AddCondition(kvp.Key, kvp.Value);
+                statement = statement.Substring(1, statement.Length-2);
             }
-            return sf;
-        }
+            expression.ExpressionStatement = statement;
+            foreach(var wc in ProcessedWorkingConditions)
+            {
+                if(string.IsNullOrWhiteSpace(wc.PropertyName)) continue;
 
-        public Ddb.QueryFilter AsQueryFilter()
-        {
-            var qf = new Ddb.QueryFilter();
-            foreach (var kvp in Conditions)
-            {
-                qf.AddCondition(kvp.Key, kvp.Value);
+                var memberAttributeName = wc.PropertyName;
+                var memberExpressionName = $"#{memberAttributeName}";
+                expression.ExpressionAttributeNames[memberExpressionName] = memberAttributeName;
+                foreach(var kvp in wc.Values)
+                {
+                    var valueAttribute = kvp.Value;
+                    var valueAttributeName = $":{kvp.Key}";
+                    expression.ExpressionAttributeValues[valueAttributeName] = valueAttribute;
+                }
             }
-            return qf;
+            return expression;
         }
 
         private void SaveAndResetWorkingCondition()
         {
             if (WorkingCondition != null && !string.IsNullOrEmpty(WorkingCondition.PropertyName))
             {
+                ProcessedWorkingConditions.Add(WorkingCondition);
                 var kvp = WorkingCondition.ToCondition();
                 Conditions.Add(kvp.Key, kvp.Value);
+                StringBuilder.Append(WorkingCondition.ToExpressionStatement());
             }
             WorkingCondition = null;
         }
 
         protected override Expression VisitBinary(BinaryExpression expression)
         {
+            if(JoinOperations.ContainsKey(expression.NodeType)) 
+            {
+                StringBuilder.Append("(");
+            }
+
             Visit(expression.Left);
+
+            if(JoinOperations.ContainsKey(expression.NodeType)) 
+            {
+                StringBuilder.Append(JoinOperations[expression.NodeType]);
+            }
+
             Visit(expression.Right);
 
             if (ExpressionTypeMap[AllowedOperationSet].ContainsKey(expression.NodeType))
             {
                 WorkingCondition!.ComparisonOperator = ExpressionTypeMap[AllowedOperationSet][expression.NodeType];
                 SaveAndResetWorkingCondition();
+            }
+
+            if(JoinOperations.ContainsKey(expression.NodeType)) 
+            {
+                StringBuilder.Append(")");
             }
 
             return expression;
@@ -157,7 +189,7 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             var memberAttributeName = expression.Member.Name;
             if (expression.Member is PropertyInfo propertyInfo)
             {
-                memberAttributeName = propertyInfo.DynamoDbAttributeName();
+                memberAttributeName = propertyInfo.DynamoDBAttributeName();
             }
             WorkingCondition!.PropertyName = memberAttributeName;
             return expression;
@@ -263,11 +295,18 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
 
         }
 
-        public static IReadOnlyDictionary<string, Condition> BuildStatement<T>(Expression<T> expression)
+        public static IReadOnlyDictionary<string, Condition> BuildConditions<T>(Expression<T> expression, AllowedOperations allowedOperationSet = AllowedOperations.ALL)
         {
-            var visitor = new FilterConditionExpressionVisitor();
+            var visitor = new FilterConditionExpressionVisitor(allowedOperationSet);
             visitor.Visit(expression);
             return visitor.GetGeneratedConditions();
+        }
+
+        public static Ddb.Expression BuildExpression<T>(Expression<T> expression, AllowedOperations allowedOperationSet = AllowedOperations.ALL)
+        {
+            var visitor = new FilterConditionExpressionVisitor(allowedOperationSet);
+            visitor.Visit(expression);
+            return visitor.GetGeneratedExpression();
         }
     }
 }

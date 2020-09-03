@@ -6,7 +6,7 @@ namespace ExpressiveDynamoDB.Extensions
 {
     public static class PropertyInfoExtensions
     {
-        public static string DynamoDbAttributeName(this PropertyInfo propertyInfo)
+        public static string DynamoDBAttributeName(this PropertyInfo propertyInfo)
         {
             var propertyAttribute = propertyInfo.GetCustomAttributes(typeof(DynamoDBAttribute), true)
                         .OfType<DynamoDBPropertyAttribute>()

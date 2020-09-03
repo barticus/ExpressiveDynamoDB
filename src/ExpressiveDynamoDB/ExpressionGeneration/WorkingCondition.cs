@@ -4,6 +4,7 @@ using System.Linq;
 using Ddb = Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2.Model;
 using Amazon.DynamoDBv2;
+using ExpressiveDynamoDB.Extensions;
 
 namespace ExpressiveDynamoDB.ExpressionGeneration
 {
@@ -22,8 +23,34 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
 
             var condition = new Condition();
             condition.ComparisonOperator = ComparisonOperator;
-            condition.AttributeValueList = new Ddb.Document(Values).ToAttributeMap().Values.ToList();
+            condition.AttributeValueList = Values.ToAttributeMap().Values.ToList();
             return new KeyValuePair<string, Condition>(PropertyName, condition);
+        }
+
+        private static readonly Dictionary<ComparisonOperator, Func<string, string[], string>> ComparisonOperatorToExpressionMap = new Dictionary<ComparisonOperator, Func<string, string[], string>> {
+            {ComparisonOperator.EQ, (member, args) => $"{member} = {args[0]}"},
+            {ComparisonOperator.NE, (member, args) => $"{member} <> {args[0]}"},
+            {ComparisonOperator.LE, (member, args) => $"{member} <= {args[0]}"},
+            {ComparisonOperator.LT, (member, args) => $"{member} < {args[0]}"},
+            {ComparisonOperator.GT, (member, args) => $"{member} > {args[0]}"},
+            {ComparisonOperator.GE, (member, args) => $"{member} >= {args[0]}"},
+            {ComparisonOperator.BEGINS_WITH, (member, args) => $"begins_with({member}, {args[0]})"},
+            {ComparisonOperator.CONTAINS, (member, args) => $"contains({member}, {args[0]})"},
+            {ComparisonOperator.BETWEEN, (member, args) => $"{member} BETWEEN {args[0]} AND {(args.Length > 1 ? args[1] : args[0])}"}
+        };
+
+        public string ToExpressionStatement()
+        {
+            var memberExpressionName = $"#{PropertyName}";
+            if(ComparisonOperator == null)
+            {
+                throw new InvalidOperationException("ComparisonOperator was not defined");
+            }
+            if(!ComparisonOperatorToExpressionMap.ContainsKey(ComparisonOperator))
+            {
+                throw new InvalidOperationException($"{ComparisonOperator} cannot be mapped to an expression");
+            }
+            return ComparisonOperatorToExpressionMap[ComparisonOperator](memberExpressionName, Values.Keys.Select(k => $":{k}").ToArray());
         }
     }
 }

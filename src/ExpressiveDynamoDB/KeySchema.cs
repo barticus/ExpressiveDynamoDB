@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
+using Amazon.DynamoDBv2.DocumentModel;
+using Amazon.DynamoDBv2.Model;
 using ExpressiveDynamoDB.Extensions;
 
 namespace ExpressiveDynamoDB
@@ -16,6 +19,26 @@ namespace ExpressiveDynamoDB
             PartitionKey = partitionKey;
             SortKey = sortKey;
             IndexName = indexName;
+        }
+
+        public Dictionary<string, AttributeValue> AttributeKeyFrom(Primitive partitionKeyValue, Primitive? sortKey = null)
+        {
+            var values = new Dictionary<string, DynamoDBEntry> {
+                { PartitionKey, partitionKeyValue }
+            };
+            if(!string.IsNullOrWhiteSpace(SortKey) && string.IsNullOrWhiteSpace(sortKey))
+            {
+                throw new ArgumentNullException(nameof(sortKey));
+            }
+            if(string.IsNullOrWhiteSpace(SortKey) && !string.IsNullOrWhiteSpace(sortKey))
+            {
+                throw new ArgumentNullException(nameof(SortKey));
+            }
+            if(!string.IsNullOrWhiteSpace(SortKey) && !string.IsNullOrWhiteSpace(sortKey))
+            {
+                values.Add(SortKey, sortKey);
+            }
+            return new Document(values).ToAttributeMap();
         }
 
         public static KeySchema From<T>(
@@ -48,7 +71,7 @@ namespace ExpressiveDynamoDB
             if (propertyInfo is null)
                 throw new InvalidOperationException("Please provide a valid property expression.");
 
-            return propertyInfo.DynamoDbAttributeName();
+            return propertyInfo.DynamoDBAttributeName();
         }
     }
 }

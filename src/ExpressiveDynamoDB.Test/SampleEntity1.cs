@@ -5,10 +5,10 @@ namespace ExpressiveDynamoDB.Test
     public class SampleEntity1
     {
         [DynamoDBProperty("pk")]
-        public string Id { get; set; }
+        public string Id { get; set; } = default!;
 
         [DynamoDBProperty("sk")]
-        public string Name { get; set; }
+        public string Name { get; set; } = default!;
 
         [DynamoDBProperty("age")]
         public int Age { get; set; }
