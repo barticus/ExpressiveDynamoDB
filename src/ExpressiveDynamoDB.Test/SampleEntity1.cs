@@ -12,5 +12,14 @@ namespace ExpressiveDynamoDB.Test
 
         [DynamoDBProperty("age")]
         public int Age { get; set; }
+
+        [DynamoDBProperty("stringArray")]
+        public string[] StringArray { get; set; } = default!;
+
+        [DynamoDBProperty("intArray")]
+        public int[] IntArray { get; set; } = default!;
+
+        [DynamoDBProperty("innerObject")]
+        public SampleEntity1? InnerObject { get; set; }
     }
 }

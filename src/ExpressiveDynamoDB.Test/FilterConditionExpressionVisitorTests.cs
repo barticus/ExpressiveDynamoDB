@@ -31,13 +31,13 @@ namespace ExpressiveDynamoDB.Test
             Assert.AreEqual(testCase.ExpectedConditions.Count, output.Count);
             foreach (var kvp in output)
             {
-                Assert.IsTrue(testCase.ExpectedConditions.ContainsKey(kvp.Key));
-                var expectedCondition = kvp.Value;
-                var returnedCondition = testCase.ExpectedConditions[kvp.Key];
+                Assert.IsTrue(testCase.ExpectedConditions.ContainsKey(kvp.Key), $"{kvp.Key} was not found as an expected condition");
+                var expectedCondition = testCase.ExpectedConditions[kvp.Key];
+                var returnedCondition = kvp.Value;
                 Assert.AreEqual(expectedCondition.ComparisonOperator, returnedCondition.ComparisonOperator);
                 var expectedValues = expectedCondition.AttributeValueList;
                 var receivedValues = returnedCondition.AttributeValueList;
-                Assert.AreEqual(expectedValues.Count, receivedValues.Count);
+                Assert.AreEqual(expectedValues.Count, receivedValues.Count, $"{kvp.Key} was expecting {expectedValues.Count} values");
                 Assert.AreEqual(AttributesToDocumentJson(expectedValues), AttributesToDocumentJson(receivedValues));
             }
         }
@@ -46,7 +46,7 @@ namespace ExpressiveDynamoDB.Test
         [TestCaseSource(typeof(ExpressionTestCase), nameof(ExpressionTestCase.GetCases))]
         public void BuildExpression_TestCases(ExpressionTestCase testCase)
         {
-            if(string.IsNullOrWhiteSpace(testCase.ExpectedExpression))
+            if (string.IsNullOrWhiteSpace(testCase.ExpectedExpression))
             {
                 Assert.Ignore();
                 return;
@@ -126,6 +126,24 @@ namespace ExpressiveDynamoDB.Test
                     TestName = "EqualsExpression_String_PrimaryKeyMember"
                 };
 
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                        { "innerObject.pk", ConditionFrom(ComparisonOperator.EQ, new AttributeValue(id))}
+                    },
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#innerObjectpk", "innerObject.pk"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":id", id}
+                    },
+                    Expression = (a) => a.InnerObject!.Id == id,
+                    ExpectedExpression = "#innerObjectpk = :id"
+                })
+                {
+                    TestName = "EqualsExpression_NestedType"
+                };
+
                 var name = "SAMPLEENTITY#myName";
                 yield return new TestCaseData(new ExpressionTestCase
                 {
@@ -151,43 +169,37 @@ namespace ExpressiveDynamoDB.Test
                 yield return new TestCaseData(new ExpressionTestCase
                 {
                     ExpectedConditions = new Dictionary<string, Condition> {
-                        { "pk", ConditionFrom(ComparisonOperator.EQ, new AttributeValue(id))},
                         { "sk", ConditionFrom(ComparisonOperator.BEGINS_WITH, new AttributeValue(name))}
                     },
-                    Expression = (a) => a.Id == id && a.Name.StartsWith(name),
+                    Expression = (a) => a.Name.StartsWith(name),
                     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-                        { "#pk", "pk"},
                         { "#sk", "sk"}
                     },
                     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-                        { ":id", id},
                         { ":name", name}
                     },
-                    ExpectedExpression = "#pk = :id AND begins_with(#sk, :name)"
+                    ExpectedExpression = "begins_with(#sk, :name)"
                 })
                 {
-                    TestName = "StartsWithExpression_String_CompositePrimaryKeyMember"
+                    TestName = "StartsWithExpression_String"
                 };
 
                 yield return new TestCaseData(new ExpressionTestCase
                 {
                     ExpectedConditions = new Dictionary<string, Condition> {
-                        { "pk", ConditionFrom(ComparisonOperator.EQ, new AttributeValue(id))},
                         { "sk", ConditionFrom(ComparisonOperator.CONTAINS, new AttributeValue(name))}
                     },
-                    Expression = (a) => a.Id == id && a.Name.Contains(name),
+                    Expression = (a) => a.Name.Contains(name),
                     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-                        { "#pk", "pk"},
                         { "#sk", "sk"}
                     },
                     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-                        { ":id", id},
                         { ":name", name}
                     },
-                    ExpectedExpression = "#pk = :id AND contains(#sk, :name)"
+                    ExpectedExpression = "contains(#sk, :name)"
                 })
                 {
-                    TestName = "ContainsExpression_String_CompositePrimaryKeyMember"
+                    TestName = "ContainsExpression_String"
                 };
 
                 var lowerBounds = "c";
@@ -211,29 +223,26 @@ namespace ExpressiveDynamoDB.Test
                     ExpectedExpression = "#pk = :id AND #sk BETWEEN :lowerBounds AND :upperBounds"
                 })
                 {
-                    TestName = "BetweenExpression_String_CompositePrimaryKeyMembers"
+                    TestName = "BetweenExpression_String"
                 };
 
                 var middleBounds = "a";
                 yield return new TestCaseData(new ExpressionTestCase
                 {
                     ExpectedConditions = new Dictionary<string, Condition> {
-                        { "pk", ConditionFrom(ComparisonOperator.EQ, new AttributeValue(id))},
                         { "sk", ConditionFrom(ComparisonOperator.BETWEEN, new AttributeValue(middleBounds))}
                     },
-                    Expression = (a) => a.Id == id && Functions.Between(a.Name, middleBounds, middleBounds),
+                    Expression = (a) => Functions.Between(a.Name, middleBounds, middleBounds),
                     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-                        { "#pk", "pk"},
                         { "#sk", "sk"}
                     },
                     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-                        { ":id", id},
                         { ":middleBounds", middleBounds}
                     },
-                    ExpectedExpression = "#pk = :id AND #sk BETWEEN :middleBounds AND :middleBounds"
+                    ExpectedExpression = "#sk BETWEEN :middleBounds AND :middleBounds"
                 })
                 {
-                    TestName = "BetweenExpression_String_CompositePrimaryKeyMember"
+                    TestName = "BetweenExpression_String_Middle"
                 };
 
                 var lowerIntBounds = 5;
@@ -241,23 +250,20 @@ namespace ExpressiveDynamoDB.Test
                 yield return new TestCaseData(new ExpressionTestCase
                 {
                     ExpectedConditions = new Dictionary<string, Condition> {
-                        { "pk", ConditionFrom(ComparisonOperator.EQ, new AttributeValue(id))},
                         { "age", ConditionFrom(ComparisonOperator.BETWEEN, new AttributeValue { N = lowerIntBounds.ToString() }, new AttributeValue{ N = upperIntBounds.ToString() })}
                     },
-                    Expression = (a) => a.Id == id && Functions.Between(a.Age, lowerIntBounds, upperIntBounds),
+                    Expression = (a) => Functions.Between(a.Age, lowerIntBounds, upperIntBounds),
                     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-                        { "#pk", "pk"},
                         { "#age", "age"}
                     },
                     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-                        { ":id", id},
                         { ":lowerIntBounds", lowerIntBounds},
                         { ":upperIntBounds", upperIntBounds}
                     },
-                    ExpectedExpression = "#pk = :id AND #age BETWEEN :lowerIntBounds AND :upperIntBounds"
+                    ExpectedExpression = "#age BETWEEN :lowerIntBounds AND :upperIntBounds"
                 })
                 {
-                    TestName = "BetweenExpression_Integer_CompositePrimaryKeyMembers"
+                    TestName = "BetweenExpression_Integer"
                 };
 
                 yield return new TestCaseData(new ExpressionTestCase
@@ -329,18 +335,131 @@ namespace ExpressiveDynamoDB.Test
                     TestName = "EqualsExpression_String_MultipleConditions2"
                 };
 
-                // var arr1 = new [] { "test1", "test2" };
-                // yield return new TestCaseData(new ExpressionTestCase
-                // {
-                //     ExpectedConditions = new Dictionary<string, Condition> {
-                //         { "pk", ConditionFrom(ComparisonOperator.EQ, new AttributeValue(id))},
-                //         { "age", ConditionFrom(ComparisonOperator.BETWEEN, new AttributeValue { N = lowerIntBounds.ToString() }, new AttributeValue{ N = upperIntBounds.ToString() })}
-                //     },
-                //     Expression = (a) => a.Id == id && arr1.Contains("test")
-                // })
-                // {
-                //     TestName = "ContainsExpression_StringArray"
-                // };
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                        { "stringArray", ConditionFrom(ComparisonOperator.CONTAINS, new AttributeValue("test"))}
+                    },
+                    Expression = (a) => a.StringArray.Contains("test"),
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#stringArray", "stringArray"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":pString", "test"}
+                    },
+                    ExpectedExpression = "contains(#stringArray, :pString)"
+                })
+                {
+                    TestName = "ContainsExpression_StringArray"
+                };
+
+                var arr1 = new[] { "string1", "string2" };
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                        { "sk", ConditionFrom(ComparisonOperator.IN, new AttributeValue { SS = arr1.ToList() })}
+                    },
+                    Expression = (a) => arr1.Contains(a.Name),
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#sk", "sk"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":arr1", arr1}
+                    },
+                    ExpectedExpression = "#sk IN (:arr1)"
+                })
+                {
+                    TestName = "InExpression_StringArray"
+                };
+
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                        { "intArray", ConditionFrom(ComparisonOperator.CONTAINS, new AttributeValue { N = "60" })}
+                    },
+                    Expression = (a) => a.IntArray.Contains(60),
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#intArray", "intArray"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":pInt32", 60}
+                    },
+                    ExpectedExpression = "contains(#intArray, :pInt32)"
+                })
+                {
+                    TestName = "ContainsExpression_IntArray"
+                };
+
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                        { "intArray", ConditionFrom(ComparisonOperator.NOT_NULL)}
+                    },
+                    Expression = (a) => Functions.AttributeExists(a.IntArray),
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#intArray", "intArray"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":pInt32", 60}
+                    },
+                    ExpectedExpression = "attribute_exists(#intArray)"
+                })
+                {
+                    TestName = "AttributeExistsExpression_IntArray"
+                };
+
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                        { "innerObject.pk", ConditionFrom(ComparisonOperator.NOT_NULL)}
+                    },
+                    Expression = (a) => Functions.AttributeExists(a.InnerObject!.Id),
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#innerObjectpk", "innerObject.pk"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":pInt32", 60}
+                    },
+                    ExpectedExpression = "attribute_exists(#innerObjectpk)"
+                })
+                {
+                    TestName = "AttributeExistsExpression_NestedType"
+                };
+
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                        { "intArray", ConditionFrom(ComparisonOperator.NULL)}
+                    },
+                    Expression = (a) => Functions.AttributeNotExists(a.IntArray),
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#intArray", "intArray"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":pInt32", 60}
+                    },
+                    ExpectedExpression = "attribute_not_exists(#intArray)"
+                })
+                {
+                    TestName = "AttributeExistsExpression_IntArray"
+                };
+
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                    },
+                    Expression = (a) => Functions.Size(a.IntArray) > 3,
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#intArray", "intArray"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":pInt32", 3}
+                    },
+                    ExpectedExpression = "size(#intArray) > :pInt32"
+                })
+                {
+                    TestName = "SizeExpression_IntArray"
+                };
 
             }
         }

@@ -47,9 +47,12 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
         private static readonly IReadOnlyDictionary<AllowedOperations, IReadOnlyList<SupportedMethod>> SupportedMethodsMap = new Dictionary<AllowedOperations, IReadOnlyList<SupportedMethod>>{
             { AllowedOperations.ALL, new List<SupportedMethod>{
                 SupportedMethod.BetweenMethod,
-                //SupportedMethod.EnumerableContainsMethod,
+                SupportedMethod.EnumerableContainsMethod,
+                SupportedMethod.AttributeExistsMethod,
+                SupportedMethod.AttributeNotExistsMethod,
                 SupportedMethod.StringContainsMethod,
                 SupportedMethod.StringStartsWithMethod,
+                SupportedMethod.SizeMethod,
             }},
             { AllowedOperations.KEY_CONDITIONS_ONLY, new List<SupportedMethod>{
                 SupportedMethod.BetweenMethod,
@@ -78,6 +81,7 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             }
         }
         private AllowedOperations AllowedOperationSet { get; set; }
+        private bool ShouldWriteToSameCondition { get; set; } = false;
 
         public FilterConditionExpressionVisitor(AllowedOperations allowedOperationSet = AllowedOperations.ALL)
         {
@@ -98,23 +102,19 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
         {
             var expression = new Ddb.Expression();
             var statement = StringBuilder.ToString();
-            if(statement.First() == '(' && statement.Last() == ')')
+            if (statement.First() == '(' && statement.Last() == ')')
             {
-                statement = statement.Substring(1, statement.Length-2);
+                statement = statement.Substring(1, statement.Length - 2);
             }
             expression.ExpressionStatement = statement;
-            foreach(var wc in ProcessedWorkingConditions)
+            foreach (var wc in ProcessedWorkingConditions)
             {
-                if(string.IsNullOrWhiteSpace(wc.PropertyName)) continue;
+                if (!wc.IsPropertyNameSet) continue;
 
-                var memberAttributeName = wc.PropertyName;
-                var memberExpressionName = $"#{memberAttributeName}";
-                expression.ExpressionAttributeNames[memberExpressionName] = memberAttributeName;
-                foreach(var kvp in wc.Values)
+                expression.ExpressionAttributeNames[WorkingCondition.AttributeNameKey(wc.PropertyName!)] = wc.PropertyName;
+                foreach (var kvp in wc.Values)
                 {
-                    var valueAttribute = kvp.Value;
-                    var valueAttributeName = $":{kvp.Key}";
-                    expression.ExpressionAttributeValues[valueAttributeName] = valueAttribute;
+                    expression.ExpressionAttributeValues[WorkingCondition.AttributeValueKey(kvp.Key)] = kvp.Value;
                 }
             }
             return expression;
@@ -122,11 +122,19 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
 
         private void SaveAndResetWorkingCondition()
         {
-            if (WorkingCondition != null && !string.IsNullOrEmpty(WorkingCondition.PropertyName))
+            if (WorkingCondition != null && WorkingCondition.IsPropertyNameSet)
             {
+                if (ShouldWriteToSameCondition)
+                {
+                    WorkingCondition.MemberExpression = WorkingCondition.ToExpressionStatement();
+                    return;
+                }
                 ProcessedWorkingConditions.Add(WorkingCondition);
                 var kvp = WorkingCondition.ToCondition();
-                Conditions.Add(kvp.Key, kvp.Value);
+                if (kvp.HasValue)
+                {
+                    Conditions.Add(kvp.Value.Key, kvp.Value.Value);
+                }
                 StringBuilder.Append(WorkingCondition.ToExpressionStatement());
             }
             WorkingCondition = null;
@@ -134,19 +142,25 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
 
         protected override Expression VisitBinary(BinaryExpression expression)
         {
-            if(JoinOperations.ContainsKey(expression.NodeType)) 
+            if (ExpressionTypeMap[AllowedOperationSet].ContainsKey(expression.NodeType))
+            {
+                ShouldWriteToSameCondition = true;
+            }
+
+            if (JoinOperations.ContainsKey(expression.NodeType))
             {
                 StringBuilder.Append("(");
             }
 
             Visit(expression.Left);
 
-            if(JoinOperations.ContainsKey(expression.NodeType)) 
+            if (JoinOperations.ContainsKey(expression.NodeType))
             {
                 StringBuilder.Append(JoinOperations[expression.NodeType]);
             }
 
             Visit(expression.Right);
+            ShouldWriteToSameCondition = false;
 
             if (ExpressionTypeMap[AllowedOperationSet].ContainsKey(expression.NodeType))
             {
@@ -154,7 +168,7 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
                 SaveAndResetWorkingCondition();
             }
 
-            if(JoinOperations.ContainsKey(expression.NodeType)) 
+            if (JoinOperations.ContainsKey(expression.NodeType))
             {
                 StringBuilder.Append(")");
             }
@@ -164,16 +178,16 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
 
         protected override Expression VisitMember(MemberExpression expression)
         {
+            var memberPath = GetMemberPath(expression);
             switch (expression.Expression.NodeType)
             {
                 case ExpressionType.Constant:
-                case ExpressionType.MemberAccess:
                     {
-                        return HandleConstant(expression.Member.Name, GetMemberConstant(expression));
+                        return HandleConstant(memberPath, GetMemberConstant(expression));
                     }
                 default:
                     {
-                        return HandleMember(expression);
+                        return HandleMember(memberPath, expression);
                     }
             }
         }
@@ -183,15 +197,10 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             return HandleConstant($"p{expression.Type.Name}", expression);
         }
 
-        private Expression HandleMember(MemberExpression expression)
+        private Expression HandleMember(string name, MemberExpression expression)
         {
             Visit(expression.Expression);
-            var memberAttributeName = expression.Member.Name;
-            if (expression.Member is PropertyInfo propertyInfo)
-            {
-                memberAttributeName = propertyInfo.DynamoDBAttributeName();
-            }
-            WorkingCondition!.PropertyName = memberAttributeName;
+            WorkingCondition!.PropertyName = name;
             return expression;
         }
 
@@ -204,6 +213,26 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             }
             WorkingCondition!.Values[constantName] = ddbExpressionValue;
             return expression;
+        }
+
+        private static string GetMemberPath(MemberExpression? me)
+        {
+            var parts = new List<string>();
+
+            while (me != null)
+            {
+                var memberName = me.Member.Name;
+                if (me.Member is PropertyInfo propertyInfo)
+                {
+                    memberName = propertyInfo.DynamoDBAttributeName();
+                }
+                parts.Add(memberName);
+
+                me = me.Expression as MemberExpression;
+            }
+
+            parts.Reverse();
+            return string.Join(".", parts);
         }
 
         private static ConstantExpression GetMemberConstant(MemberExpression node)
@@ -229,31 +258,43 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
 
         protected override Expression VisitMethodCall(MethodCallExpression expression)
         {
-            var foundMethod = SupportedMethodsMap[AllowedOperationSet].FirstOrDefault(m => expression.Method.Equals(m.MethodInfo));
+            var foundMethod = SupportedMethodsMap[AllowedOperationSet].FirstOrDefault(m => m.MatchesMethod(expression.Method));
             if (foundMethod == null)
             {
-                throw new InvalidOperationException($"{expression.Method.Name} is not a supported method!");
+                throw new InvalidOperationException($"{expression.Method.DeclaringType.Name}.{expression.Method.Name} is not a supported method!");
             }
 
             if (foundMethod.ExpectedArgumentCount != expression.Arguments.Count())
             {
-                throw new InvalidOperationException($"{foundMethod.MethodInfo.Name} method is expecting {foundMethod.ExpectedArgumentCount} arguments.");
+                throw new InvalidOperationException($"{expression.Method.Name} method is expecting {foundMethod.ExpectedArgumentCount} arguments.");
             }
 
+            bool methodCalledOnProperty = false;
             if (foundMethod.VisitObject)
             {
                 Visit(expression.Object);
+                methodCalledOnProperty = WorkingCondition!.IsPropertyNameSet;
             }
 
             if (foundMethod.VisitArguments)
             {
+                var index = 0;
                 foreach (var argument in expression.Arguments)
                 {
                     Visit(argument);
+                    if (index == 0 && !foundMethod.VisitObject)
+                    {
+                        methodCalledOnProperty = WorkingCondition!.IsPropertyNameSet;
+                    }
+                    index++;
                 }
             }
+            var wasPropertyArgument = !methodCalledOnProperty && WorkingCondition!.IsPropertyNameSet;
 
-            WorkingCondition!.ComparisonOperator = foundMethod.ComparisonOperator;
+            WorkingCondition!.ComparisonOperator = wasPropertyArgument && foundMethod.ComparisonOperatorIfPropertyWasArgument != null ?
+                foundMethod.ComparisonOperatorIfPropertyWasArgument :
+                foundMethod.ComparisonOperator;
+            WorkingCondition.CanMapToCondition = foundMethod.CanMapToCondition;
 
             SaveAndResetWorkingCondition();
             return expression;
@@ -284,14 +325,13 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             return propertyInfo.GetValue(instance, null);
         }
 
-        private static ConstantExpression TryEvaluate(Expression expression)
+        private static ConstantExpression TryEvaluate(Expression? expression)
         {
-
-            if (expression.NodeType == ExpressionType.Constant)
+            if (expression != null && expression.NodeType == ExpressionType.Constant)
             {
                 return (ConstantExpression)expression;
             }
-            throw new NotSupportedException();
+            throw new NotSupportedException($"{expression?.NodeType} could not be converted to a constant.");
 
         }
 
