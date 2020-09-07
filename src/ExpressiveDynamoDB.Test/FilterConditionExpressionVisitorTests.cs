@@ -107,6 +107,47 @@ namespace ExpressiveDynamoDB.Test
                     TestName = "EqualsExpression_String_PrimaryKeyConstant"
                 };
 
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                        { "pk", ConditionFrom(ComparisonOperator.EQ, new AttributeValue("SAMPLEENTITY#myId"))},
+                        { "sk", ConditionFrom(ComparisonOperator.EQ, new AttributeValue("SAMPLEENTITY#myName"))}
+                    },
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#pk", "pk"},
+                        { "#sk", "sk"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":pString", "SAMPLEENTITY#myId"},
+                        { ":pString2", "SAMPLEENTITY#myName"}
+                    },
+                    Expression = (a) => a.Id == "SAMPLEENTITY#myId" && a.Name == "SAMPLEENTITY#myName",
+                    ExpectedExpression = "#pk = :pString AND #sk = :pString2"
+                })
+                {
+                    TestName = "EqualsExpression_String_CompositeKeyConstant"
+                };
+
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                        { "pk", ConditionFrom(ComparisonOperator.EQ, new AttributeValue("SAMPLEENTITY#myId"))},
+                        { "sk", ConditionFrom(ComparisonOperator.EQ, new AttributeValue("SAMPLEENTITY#myId"))}
+                    },
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#pk", "pk"},
+                        { "#sk", "sk"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":pString", "SAMPLEENTITY#myId"}
+                    },
+                    Expression = (a) => a.Id == "SAMPLEENTITY#myId" && a.Name == "SAMPLEENTITY#myId",
+                    ExpectedExpression = "#pk = :pString AND #sk = :pString"
+                })
+                {
+                    TestName = "EqualsExpression_String_CompositeKeyConstant_SameKey"
+                };
+
                 var id = "SAMPLEENTITY#myId";
                 yield return new TestCaseData(new ExpressionTestCase
                 {
@@ -459,6 +500,40 @@ namespace ExpressiveDynamoDB.Test
                 })
                 {
                     TestName = "SizeExpression_IntArray"
+                };
+
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                    },
+                    Expression = (a) => a.IntArray.Count() > 3,
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#intArray", "intArray"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":pInt32", 3}
+                    },
+                    ExpectedExpression = "size(#intArray) > :pInt32"
+                })
+                {
+                    TestName = "EnumerableCountExpression_IntArray"
+                };
+
+                yield return new TestCaseData(new ExpressionTestCase
+                {
+                    ExpectedConditions = new Dictionary<string, Condition> {
+                    },
+                    Expression = (a) => Functions.AttributeType(a.IntArray, AttributeType.NS),
+                    ExpectedExpressionAttributeNames = new Dictionary<string, string> {
+                        { "#intArray", "intArray"}
+                    },
+                    ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
+                        { ":pAttributeType", "NS"}
+                    },
+                    ExpectedExpression = "attribute_type(#intArray, :pAttributeType)"
+                })
+                {
+                    TestName = "AttributeTypeExpression_IntArray"
                 };
 
             }

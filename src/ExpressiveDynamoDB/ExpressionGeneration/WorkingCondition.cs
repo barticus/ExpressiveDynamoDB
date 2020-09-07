@@ -48,6 +48,7 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             {ComparisonOperator.NULL, (member, args) => $"attribute_not_exists({member})"},
             {ComparisonOperator.IN, (member, args) => $"{member} IN ({string.Join(", ", args)})"},
             {UnmappedComparisonOperator.Size, (member, args) => $"size({member})"},
+            {UnmappedComparisonOperator.AttributeType, (member, args) => $"attribute_type({member}, {args[0]})"},
         };
 
         public string ToExpressionStatement()

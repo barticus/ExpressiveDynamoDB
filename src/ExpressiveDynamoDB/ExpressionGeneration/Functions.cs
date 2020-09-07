@@ -1,5 +1,3 @@
-using ExpressiveDynamoDB.ExpressionGeneration;
-
 namespace ExpressiveDynamoDB
 {
     public static class Functions

@@ -1,9 +1,11 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.DataModel;
 
 namespace ExpressiveDynamoDB.ExpressionGeneration
 {
@@ -20,8 +22,10 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
         public ComparisonOperator ComparisonOperator { get; }
 
         public ComparisonOperator? ComparisonOperatorIfPropertyWasArgument { get; set; }
-        
+
         public bool CanMapToCondition { get; set; } = true;
+
+        public Dictionary<Type, IPropertyConverter> TypeConverters { get; } = new Dictionary<Type, IPropertyConverter>();
 
         public SupportedMethod(MethodInfo info, ComparisonOperator comparisonOperator) : this((MethodInfo) => MethodInfo.Equals(info), comparisonOperator)
         { }
@@ -30,6 +34,12 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
         {
             MatchesMethod = methodMatcher;
             ComparisonOperator = comparisonOperator;
+        }
+
+        public SupportedMethod AddTypeConverter<TT, TC>() where TC: IPropertyConverter, new()
+        {
+            TypeConverters.Add(typeof(TT), new TC());
+            return this;
         }
 
         public static SupportedMethod StringContainsMethod = new SupportedMethod(((Func<string, bool>)"".Contains).GetMethodInfo(), ComparisonOperator.CONTAINS)
@@ -55,7 +65,7 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
 
         public static SupportedMethod EnumerableContainsMethod = new SupportedMethod(
             (info) => info.DeclaringType.Name == nameof(Enumerable)
-                && info.Name == "Contains", ComparisonOperator.CONTAINS)
+                && info.Name == nameof(Enumerable.Contains), ComparisonOperator.CONTAINS)
         {
             ExpectedArgumentCount = 2,
             VisitArguments = true,
@@ -84,5 +94,24 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             VisitObject = false,
             CanMapToCondition = false,
         };
+
+        public static SupportedMethod EnumerableCountMethod = new SupportedMethod(
+            (info) => info.DeclaringType.Name == nameof(Enumerable)
+                && info.Name == nameof(Enumerable.Count), UnmappedComparisonOperator.Size)
+        {
+            ExpectedArgumentCount = 1,
+            VisitArguments = true,
+            VisitObject = false, // this is an extension method, so object is argument anyway
+            CanMapToCondition = false,
+        };
+
+        public static SupportedMethod AttributeTypeMethod = new SupportedMethod(typeof(Functions).GetMethod(nameof(Functions.AttributeType)), UnmappedComparisonOperator.AttributeType)
+        {
+            ExpectedArgumentCount = 2,
+            VisitArguments = true,
+            VisitObject = false,
+            CanMapToCondition = false,
+        }.AddTypeConverter<AttributeType, AttributeTypeConverter>();
+
     }
 }

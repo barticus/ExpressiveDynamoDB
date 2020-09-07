@@ -9,6 +9,7 @@ using Ddb = Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2.Model;
 using Amazon.DynamoDBv2;
 using System.Text;
+using Amazon.DynamoDBv2.DataModel;
 
 namespace ExpressiveDynamoDB.ExpressionGeneration
 {
@@ -53,6 +54,8 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
                 SupportedMethod.StringContainsMethod,
                 SupportedMethod.StringStartsWithMethod,
                 SupportedMethod.SizeMethod,
+                SupportedMethod.EnumerableCountMethod,
+                SupportedMethod.AttributeTypeMethod,
             }},
             { AllowedOperations.KEY_CONDITIONS_ONLY, new List<SupportedMethod>{
                 SupportedMethod.BetweenMethod,
@@ -63,6 +66,7 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
         private readonly Dictionary<string, Condition> Conditions = new Dictionary<string, Condition>();
         private readonly List<WorkingCondition> ProcessedWorkingConditions = new List<WorkingCondition>();
         private readonly StringBuilder StringBuilder = new StringBuilder();
+        private readonly Dictionary<Type, IPropertyConverter> TypeConverters = new Dictionary<Type, IPropertyConverter>();
 
         private WorkingCondition? _workingCondition = null;
         private WorkingCondition? WorkingCondition
@@ -211,8 +215,37 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             {
                 throw new InvalidOperationException($"{expression.Value.GetType().Name} is not a DynamoDBEntry type");
             }
-            WorkingCondition!.Values[constantName] = ddbExpressionValue;
+            AddWorkingConditionValue(constantName, ddbExpressionValue);
             return expression;
+        }
+
+        private void AddWorkingConditionValue(string constantName, Ddb.DynamoDBEntry entry)
+        {
+            var index = 1;
+            var runningConstant = constantName;
+            var existingCondition = FindConditionValue(runningConstant);
+            while(existingCondition != null)
+            {
+                Console.WriteLine($"Comparing {existingCondition.Value.Value.AsString()} to {entry.AsString()}");
+                if(existingCondition.Value.Value.Equals(entry))
+                {
+                    // value is already stored as a condition
+                    break;
+                }
+                index++;
+                runningConstant = $"{constantName}{index}";
+                existingCondition = FindConditionValue(runningConstant);
+            }
+            WorkingCondition!.Values[runningConstant] = entry;
+        }
+
+        private KeyValuePair<string, Ddb.DynamoDBEntry>? FindConditionValue(string conditionValueKey)
+        {
+            if(WorkingCondition!.Values.ContainsKey(conditionValueKey)) {
+                return WorkingCondition!.Values.First(c => c.Key == conditionValueKey);
+            }
+            var foundWorkingCondition = ProcessedWorkingConditions.FirstOrDefault(wc => wc.Values.ContainsKey(conditionValueKey));
+            return foundWorkingCondition != null ? foundWorkingCondition.Values.First(c => c.Key == conditionValueKey) : (KeyValuePair<string, Ddb.DynamoDBEntry>?)null;
         }
 
         private static string GetMemberPath(MemberExpression? me)
@@ -269,6 +302,17 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
                 throw new InvalidOperationException($"{expression.Method.Name} method is expecting {foundMethod.ExpectedArgumentCount} arguments.");
             }
 
+            if(foundMethod.TypeConverters.Any())
+            {
+                foreach(var kvp in foundMethod.TypeConverters)
+                {
+                    if(!TypeConverters.ContainsKey(kvp.Key))
+                    {
+                        TypeConverters.Add(kvp.Key, kvp.Value);
+                    }
+                }
+            }
+
             bool methodCalledOnProperty = false;
             if (foundMethod.VisitObject)
             {
@@ -300,8 +344,12 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             return expression;
         }
 
-        private static Ddb.DynamoDBEntry? TryConvertToDynamoDbEntry(ConstantExpression expression)
+        private Ddb.DynamoDBEntry? TryConvertToDynamoDbEntry(ConstantExpression expression)
         {
+            if(TypeConverters.ContainsKey(expression.Value.GetType()))
+            {
+                return TypeConverters[expression.Value.GetType()].ToEntry(expression.Value);
+            }
             var lambda = Expression.Lambda<Func<Ddb.DynamoDBEntry>>(Expression.Convert(expression, typeof(Ddb.DynamoDBEntry)));
             var func = lambda.Compile();
             return func();

@@ -1,3 +1,7 @@
+using System;
+using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2.DocumentModel;
+
 namespace ExpressiveDynamoDB
 {
     public enum AttributeType 
@@ -51,5 +55,27 @@ namespace ExpressiveDynamoDB
         /// Map
         ///</summary>
         M
+    }
+
+    public class AttributeTypeConverter : IPropertyConverter
+    {
+        public DynamoDBEntry ToEntry(object value)
+        {
+            if(!(value is AttributeType attributeValue))
+            {
+                throw new ArgumentException($"{nameof(value)} should have been of type {nameof(AttributeType)}");
+            }
+            return attributeValue.ToString();
+        }
+
+        public object FromEntry(DynamoDBEntry entry)
+        {
+            var entryValue = entry.AsString();
+            if(string.IsNullOrWhiteSpace(entryValue))
+            {
+                throw new ArgumentException($"{nameof(entry)} should have been of type {nameof(String)}");
+            }
+            return Enum.Parse<AttributeType>(entryValue);
+        }
     }
 }

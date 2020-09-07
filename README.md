@@ -84,7 +84,7 @@ var myEntities = myResponse.Items<MyEntity>(myMapper);
 
 ## Roadmap
 
-1. Support for more operations, e.g. `e => Functions.AttributeExists(e.OptionalType)`
+1. Integration testing against local DynamoDB
 2. Support for update expression types, e.g. `e => e.Age += 1`
 3. Nested type support and further testing
 4. A considered approach to modelling a table in C# with full support for expressions, indexes, entity mapping (to many types)
