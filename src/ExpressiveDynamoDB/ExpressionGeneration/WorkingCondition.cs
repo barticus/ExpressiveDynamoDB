@@ -24,7 +24,8 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
                 throw new ArgumentException("ComparisonOperator has not been set!");
             }
 
-            if(!CanMapToCondition) {
+            if (!CanMapToCondition)
+            {
                 return null;
             }
 
@@ -53,30 +54,85 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
 
         public string ToExpressionStatement()
         {
-            if(PropertyName == null)
+            if (PropertyName == null)
             {
                 throw new InvalidOperationException("PropertyName was not defined");
             }
-            if(ComparisonOperator == null)
+            if (ComparisonOperator == null)
             {
                 throw new InvalidOperationException("ComparisonOperator was not defined");
             }
-            if(!ComparisonOperatorToExpressionMap.ContainsKey(ComparisonOperator))
+            if (!ComparisonOperatorToExpressionMap.ContainsKey(ComparisonOperator))
             {
                 throw new InvalidOperationException($"{ComparisonOperator} cannot be mapped to an expression");
             }
-            return ComparisonOperatorToExpressionMap[ComparisonOperator](AttributeNameKey(MemberExpression ?? PropertyName!), Values.Keys.Select(AttributeValueKey).ToArray());
+            var attributeName = AttributeNameKey(MemberExpression ?? PropertyName!);
+            var attributeValueKeys = Values
+                .SelectMany(kvp => ExplodeAttributeValueEntries(kvp.Key, kvp.Value))
+                .Select(kvp => kvp.Key)
+                .ToArray();
+            return ComparisonOperatorToExpressionMap[ComparisonOperator](attributeName, attributeValueKeys);
         }
 
         public static string AttributeNameKey(string attributeName)
         {
-            if(attributeName.Contains("#")) return attributeName;
-            return $"#{attributeName.Replace(".", "")}";
+            if (attributeName.Contains("#")) return attributeName;
+            return $"#{attributeName.Replace(".", ".#")}";
+        }
+
+        public static Dictionary<string, string> AttributeNameKeys(string attributeName)
+        {
+            return attributeName.Split('.').ToDictionary(s => AttributeNameKey(s), s => s);
+        }
+
+        public Dictionary<string, Ddb.DynamoDBEntry> ExplodeAttributeValueEntries(string attributeValue, Ddb.DynamoDBEntry entry)
+        {
+            var returnValues = new Dictionary<string, Ddb.DynamoDBEntry>();
+            if (ComparisonOperator == ComparisonOperator.IN)
+            {
+                var attribute = new Dictionary<string, Ddb.DynamoDBEntry>{
+                    { attributeValue , entry }
+                }.ToAttributeMap().First().Value;
+                
+                var index = 0;
+                var returnAttributes = new Dictionary<string, AttributeValue>();
+                if(attribute.IsLSet)
+                {
+                    attribute.L.ForEach((item) => {
+                        returnAttributes.Add(AttributeValueKey($"{attributeValue}_{index}"), item);
+                        index++;
+                    });
+                }
+                if(attribute.NS.Any())
+                {
+                    attribute.NS.ForEach((item) => {
+                        returnAttributes.Add(AttributeValueKey($"{attributeValue}_{index}"), new AttributeValue() { N = item });
+                        index++;
+                    });
+                }
+                if(attribute.SS.Any())
+                {
+                    attribute.SS.ForEach((item) => {
+                        returnAttributes.Add(AttributeValueKey($"{attributeValue}_{index}"), new AttributeValue(item));
+                        index++;
+                    });
+                }
+
+                returnValues = Ddb.Document
+                    .FromAttributeMap(returnAttributes)
+                    .ToDictionary(d => d.Key, d => d.Value);
+            }
+            else
+            {
+                returnValues.Add(AttributeValueKey(attributeValue), entry);
+            }
+
+            return returnValues;
         }
 
         public static string AttributeValueKey(string attributeValue)
         {
-            if(attributeValue.Contains(":")) return attributeValue;
+            if (attributeValue.Contains(":")) return attributeValue;
             return $":{attributeValue.Replace(".", "")}";
         }
     }

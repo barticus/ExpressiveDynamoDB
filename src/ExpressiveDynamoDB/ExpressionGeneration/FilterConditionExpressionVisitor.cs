@@ -115,10 +115,11 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             {
                 if (!wc.IsPropertyNameSet) continue;
 
-                expression.ExpressionAttributeNames[WorkingCondition.AttributeNameKey(wc.PropertyName!)] = wc.PropertyName;
+                expression.ExpressionAttributeNames.AddRange(WorkingCondition.AttributeNameKeys(wc.PropertyName!));
                 foreach (var kvp in wc.Values)
                 {
-                    expression.ExpressionAttributeValues[WorkingCondition.AttributeValueKey(kvp.Key)] = kvp.Value;
+                    var explodedValues = wc.ExplodeAttributeValueEntries(kvp.Key, kvp.Value);
+                    expression.ExpressionAttributeValues.AddRange(explodedValues);
                 }
             }
             return expression;
@@ -226,7 +227,6 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
             var existingCondition = FindConditionValue(runningConstant);
             while(existingCondition != null)
             {
-                Console.WriteLine($"Comparing {existingCondition.Value.Value.AsString()} to {entry.AsString()}");
                 if(existingCondition.Value.Value.Equals(entry))
                 {
                     // value is already stored as a condition
@@ -383,14 +383,14 @@ namespace ExpressiveDynamoDB.ExpressionGeneration
 
         }
 
-        public static IReadOnlyDictionary<string, Condition> BuildConditions<T>(Expression<T> expression, AllowedOperations allowedOperationSet = AllowedOperations.ALL)
+        public static IReadOnlyDictionary<string, Condition> BuildConditions<T>(Expression<Func<T, bool>> expression, AllowedOperations allowedOperationSet = AllowedOperations.ALL)
         {
             var visitor = new FilterConditionExpressionVisitor(allowedOperationSet);
             visitor.Visit(expression);
             return visitor.GetGeneratedConditions();
         }
 
-        public static Ddb.Expression BuildExpression<T>(Expression<T> expression, AllowedOperations allowedOperationSet = AllowedOperations.ALL)
+        public static Ddb.Expression BuildExpression<T>(Expression<Func<T, bool>> expression, AllowedOperations allowedOperationSet = AllowedOperations.ALL)
         {
             var visitor = new FilterConditionExpressionVisitor(allowedOperationSet);
             visitor.Visit(expression);

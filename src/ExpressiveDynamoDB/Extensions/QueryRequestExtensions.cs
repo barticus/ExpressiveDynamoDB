@@ -1,3 +1,4 @@
+using System;
 using System.Linq.Expressions;
 using Amazon.DynamoDBv2.Model;
 using ExpressiveDynamoDB.ExpressionGeneration;
@@ -7,7 +8,7 @@ namespace ExpressiveDynamoDB.Extensions
 {
     public static class QueryRequestExtensions
     {
-        public static QueryRequest FilterExpression<T>(this QueryRequest qr, Expression<T> expression)
+        public static QueryRequest FilterExpression<T>(this QueryRequest qr, Expression<Func<T, bool>> expression)
         {
             var ddbExpression = FilterConditionExpressionVisitor.BuildExpression<T>(expression);
             qr.FilterExpression = ddbExpression.ExpressionStatement;
@@ -16,7 +17,7 @@ namespace ExpressiveDynamoDB.Extensions
             return qr;
         }
 
-        public static QueryRequest KeyConditionExpression<T>(this QueryRequest qr, Expression<T> expression)
+        public static QueryRequest KeyConditionExpression<T>(this QueryRequest qr, Expression<Func<T, bool>> expression)
         {
             var ddbExpression = FilterConditionExpressionVisitor.BuildExpression<T>(expression, AllowedOperations.KEY_CONDITIONS_ONLY);
             qr.KeyConditionExpression = ddbExpression.ExpressionStatement;
