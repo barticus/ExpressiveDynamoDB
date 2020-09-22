@@ -26,3 +26,5 @@ jobs:
     - name: Test
       run: dotnet test
       working-directory: src
+      env:
+        AWS_DEFAULT_REGION: us-east-1
