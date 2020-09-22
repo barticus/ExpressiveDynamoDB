@@ -25,3 +25,4 @@ jobs:
       run: docker pull amazon/dynamodb-local
     - name: Test
       run: dotnet test --no-restore --verbosity normal
+      working-directory: src/ExpressiveDynamoDB.Test
