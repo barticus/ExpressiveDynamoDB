@@ -21,10 +21,11 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --configuration Release --no-restore
-    - name: Pull DynamoDB Docker Image
-      run: docker pull amazon/dynamodb-local
     - name: Test
-      run: dotnet test
+      run: |
+        docker pull amazon/dynamodb-local
+        docker image ls
+        dotnet test
       working-directory: src
       env:
         AWS_REGION: us-east-1

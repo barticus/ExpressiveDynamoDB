@@ -40,17 +40,9 @@ namespace ExpressiveDynamoDB.Test
 
             if (container?.State == "running")
             {
+                Console.WriteLine("Docker container was already running");
                 return EndpointUrl;
             }
-
-            //look for image
-            // var image = (await Client.Images.ListImagesAsync(new ImagesListParameters()
-            // {
-            //     MatchName = $"{ImageName}:{Tag}",
-            // }, CancellationToken.None)).FirstOrDefault();
-
-            // if (image == null)
-            //     throw new Exception($"Docker image for {ImageName}:{Tag} not found.");
 
             var containerId = container?.ID;
 
@@ -94,6 +86,7 @@ namespace ExpressiveDynamoDB.Test
                 containerStat = await Client.Containers.InspectContainerAsync(containerId, CancellationToken.None);
             }
 
+            Console.WriteLine("Docker container started!");
             return EndpointUrl;
         }
 
