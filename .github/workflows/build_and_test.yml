@@ -24,7 +24,8 @@ jobs:
     - name: Test
       run: |
         docker pull amazon/dynamodb-local
-        docker image ls
+        docker run -d -p 8000:8000 amazon/dynamodb-local
+        docker ps
         dotnet test
       working-directory: src
       env:
