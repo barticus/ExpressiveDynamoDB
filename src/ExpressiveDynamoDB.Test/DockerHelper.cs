@@ -108,8 +108,8 @@ namespace ExpressiveDynamoDB.Test
             var existingTables = await client.ListTablesAsync();
             if(existingTables.TableNames.Contains(tableName))
             {
-                await client.DeleteTableAsync(tableName);
-                //return false;
+                //await client.DeleteTableAsync(tableName);
+                return false;
             }
             await client.CreateTableAsync(tableName, keySchema, attributeDefinitions, provisionedThroughput);
             return true;

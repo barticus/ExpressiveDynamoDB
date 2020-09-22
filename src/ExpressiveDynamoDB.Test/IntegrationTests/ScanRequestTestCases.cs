@@ -70,7 +70,7 @@ namespace ExpressiveDynamoDB.Test.IntegrationTests
 
             yield return new TestCaseData(new ScanRequestTestCases
             {
-                Expression = (a) => a.InnerObject!.Id == "INNERENTITY#0005",
+                Expression = (a) => a.Id == "ENTITY#0005" && a.InnerObject!.Id == "INNERENTITY#0005",
                 SeedData = BaseTest.GenerateData(2, (i) => new Dictionary<string, AttributeValue> {
                     { "pk", new AttributeValue("ENTITY#0005") },
                     { "sk", new AttributeValue($"ITEM#{i.ToString("D4")}") },
@@ -212,131 +212,162 @@ namespace ExpressiveDynamoDB.Test.IntegrationTests
                 TestName = "InExpression_StringArray"
             };
 
-            // yield return new TestCaseData(new ScanRequestTestCases
-            // {
-            //     ExpectedConditions = new Dictionary<string, Condition> {
-            //             { "intArray", ConditionFrom(ComparisonOperator.CONTAINS, new AttributeValue { N = "60" })}
-            //         },
-            //     Expression = (a) => a.IntArray.Contains(60),
-            //     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-            //             { "#intArray", "intArray"}
-            //         },
-            //     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-            //             { ":pInt32", 60}
-            //         },
-            //     ExpectedExpression = "contains(#intArray, :pInt32)"
-            // })
-            // {
-            //     TestName = "ContainsExpression_IntArray"
-            // };
+            yield return new TestCaseData(new ScanRequestTestCases
+            {
+                Expression = (a) => a.Id == "ENTITY#0015" && a.IntArray.Contains(60),
+                SeedData = BaseTest.GenerateData(10, (i) => new Dictionary<string, AttributeValue> {
+                    { "pk", new AttributeValue("ENTITY#0015") },
+                    { "sk", new AttributeValue($"ITEM#{i.ToString("D4")}") },
+                    { "intArray", new AttributeValue { NS = Enumerable.Range(i-3, 5).Select(ii => (ii*10).ToString()).ToList()}}
+                }),
+                ExpectedResultCount = 5
+            })
+            {
+                TestName = "ContainsExpression_IntArray"
+            };
 
-            // yield return new TestCaseData(new ScanRequestTestCases
-            // {
-            //     ExpectedConditions = new Dictionary<string, Condition> {
-            //             { "intArray", ConditionFrom(ComparisonOperator.NOT_NULL)}
-            //         },
-            //     Expression = (a) => Functions.AttributeExists(a.IntArray),
-            //     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-            //             { "#intArray", "intArray"}
-            //         },
-            //     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-            //             { ":pInt32", 60}
-            //         },
-            //     ExpectedExpression = "attribute_exists(#intArray)"
-            // })
-            // {
-            //     TestName = "AttributeExistsExpression_IntArray"
-            // };
+            yield return new TestCaseData(new ScanRequestTestCases
+            {
+                Expression = (a) => a.Id == "ENTITY#0016" && Functions.AttributeExists(a.IntArray),
+                SeedData = BaseTest.GenerateData(9, (i) =>
+                {
+                    var dict = new Dictionary<string, AttributeValue> {
+                        { "pk", new AttributeValue("ENTITY#0016") },
+                        { "sk", new AttributeValue($"ITEM#{i.ToString("D4")}") },
+                    };
+                    if (i % 4 == 0)
+                    {
+                        dict.Add("intArray", new AttributeValue { NS = Enumerable.Range(i, 5).Select(ii => (ii).ToString()).ToList() });
+                    }
+                    return dict;
+                }),
+                ExpectedResultCount = 3
+            })
+            {
+                TestName = "AttributeExistsExpression_IntArray"
+            };
 
-            // yield return new TestCaseData(new ScanRequestTestCases
-            // {
-            //     ExpectedConditions = new Dictionary<string, Condition> {
-            //             { "innerObject.pk", ConditionFrom(ComparisonOperator.NOT_NULL)}
-            //         },
-            //     Expression = (a) => Functions.AttributeExists(a.InnerObject!.Id),
-            //     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-            //             { "#innerObjectpk", "innerObject.pk"}
-            //         },
-            //     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-            //             { ":pInt32", 60}
-            //         },
-            //     ExpectedExpression = "attribute_exists(#innerObjectpk)"
-            // })
-            // {
-            //     TestName = "AttributeExistsExpression_NestedType"
-            // };
+            yield return new TestCaseData(new ScanRequestTestCases
+            {
+                Expression = (a) => a.Id == "ENTITY#0017" && Functions.AttributeExists(a.InnerObject!.Name),
+                SeedData = BaseTest.GenerateData(9, (i) =>
+                {
+                    var dict = new Dictionary<string, AttributeValue> {
+                        { "pk", new AttributeValue("ENTITY#0017") },
+                        { "sk", new AttributeValue($"ITEM#{i.ToString("D4")}") },
+                        { "innerObject", new AttributeValue(){ M = new Dictionary<string, AttributeValue> {
+                            { "pk", new AttributeValue("INNERENTITY#0017") },
+                        }} },
+                    };
+                    if (i % 4 == 0)
+                    {
+                        dict["innerObject"].M.Add("sk", new AttributeValue("test"));
+                    }
+                    return dict;
+                }),
+                ExpectedResultCount = 3
+            })
+            {
+                TestName = "AttributeExistsExpression_NestedType"
+            };
 
-            // yield return new TestCaseData(new ScanRequestTestCases
-            // {
-            //     ExpectedConditions = new Dictionary<string, Condition> {
-            //             { "intArray", ConditionFrom(ComparisonOperator.NULL)}
-            //         },
-            //     Expression = (a) => Functions.AttributeNotExists(a.IntArray),
-            //     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-            //             { "#intArray", "intArray"}
-            //         },
-            //     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-            //             { ":pInt32", 60}
-            //         },
-            //     ExpectedExpression = "attribute_not_exists(#intArray)"
-            // })
-            // {
-            //     TestName = "AttributeExistsExpression_IntArray"
-            // };
+            yield return new TestCaseData(new ScanRequestTestCases
+            {
+                Expression = (a) => a.Id == "ENTITY#0018" && Functions.AttributeNotExists(a.IntArray),
+                SeedData = BaseTest.GenerateData(9, (i) =>
+                {
+                    var dict = new Dictionary<string, AttributeValue> {
+                        { "pk", new AttributeValue("ENTITY#0018") },
+                        { "sk", new AttributeValue($"ITEM#{i.ToString("D4")}") },
+                    };
+                    if (i % 4 == 0)
+                    {
+                        dict.Add("intArray", new AttributeValue { NS = Enumerable.Range(i, 5).Select(ii => (ii).ToString()).ToList() });
+                    }
+                    return dict;
+                }),
+                ExpectedResultCount = 6
+            })
+            {
+                TestName = "AttributeNotExistsExpression_IntArray"
+            };
 
-            // yield return new TestCaseData(new ScanRequestTestCases
-            // {
-            //     ExpectedConditions = new Dictionary<string, Condition>
-            //     {
-            //     },
-            //     Expression = (a) => Functions.Size(a.IntArray) > 3,
-            //     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-            //             { "#intArray", "intArray"}
-            //         },
-            //     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-            //             { ":pInt32", 3}
-            //         },
-            //     ExpectedExpression = "size(#intArray) > :pInt32"
-            // })
-            // {
-            //     TestName = "SizeExpression_IntArray"
-            // };
+            yield return new TestCaseData(new ScanRequestTestCases
+            {
+                Expression = (a) => a.Id == "ENTITY#0019" && Functions.AttributeNotExists(a.InnerObject!.Name),
+                SeedData = BaseTest.GenerateData(9, (i) =>
+                {
+                    var dict = new Dictionary<string, AttributeValue> {
+                        { "pk", new AttributeValue("ENTITY#0019") },
+                        { "sk", new AttributeValue($"ITEM#{i.ToString("D4")}") },
+                        { "innerObject", new AttributeValue(){ M = new Dictionary<string, AttributeValue> {
+                            { "pk", new AttributeValue("INNERENTITY#0019") },
+                        }} },
+                    };
+                    if (i % 4 == 0)
+                    {
+                        dict["innerObject"].M.Add("sk", new AttributeValue("test"));
+                    }
+                    return dict;
+                }),
+                ExpectedResultCount = 6
+            })
+            {
+                TestName = "AttributeNotExistsExpression_NestedType"
+            };
 
-            // yield return new TestCaseData(new ScanRequestTestCases
-            // {
-            //     ExpectedConditions = new Dictionary<string, Condition>
-            //     {
-            //     },
-            //     Expression = (a) => a.IntArray.Count() > 3,
-            //     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-            //             { "#intArray", "intArray"}
-            //         },
-            //     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-            //             { ":pInt32", 3}
-            //         },
-            //     ExpectedExpression = "size(#intArray) > :pInt32"
-            // })
-            // {
-            //     TestName = "EnumerableCountExpression_IntArray"
-            // };
+            yield return new TestCaseData(new ScanRequestTestCases
+            {
+                Expression = (a) => a.Id == "ENTITY#0020" && Functions.Size(a.IntArray) > 3,
+                SeedData = BaseTest.GenerateData(10, (i) => new Dictionary<string, AttributeValue> {
+                    { "pk", new AttributeValue("ENTITY#0020") },
+                    { "sk", new AttributeValue($"ITEM#{i.ToString("D4")}") },
+                    { "intArray", new AttributeValue { NS = Enumerable.Range(0, i+1).Select(ii => ii.ToString()).ToList()}}
+                }),
+                ExpectedResultCount = 7
+            })
+            {
+                TestName = "SizeExpression_IntArray"
+            };
 
-            // yield return new TestCaseData(new ScanRequestTestCases
-            // {
-            //     ExpectedConditions = new Dictionary<string, Condition>
-            //     {
-            //     },
-            //     Expression = (a) => Functions.AttributeType(a.IntArray, AttributeType.NS),
-            //     ExpectedExpressionAttributeNames = new Dictionary<string, string> {
-            //             { "#intArray", "intArray"}
-            //         },
-            //     ExpectedExpressionAttributeValues = new Dictionary<string, DynamoDBEntry> {
-            //             { ":pAttributeType", "NS"}
-            //         },
-            //     ExpectedExpression = "attribute_type(#intArray, :pAttributeType)"
-            // })
-            // {
-            //     TestName = "AttributeTypeExpression_IntArray"
-            // };
+            yield return new TestCaseData(new ScanRequestTestCases
+            {
+                Expression = (a) => a.Id == "ENTITY#0021" && a.IntArray.Count() > 3,
+                SeedData = BaseTest.GenerateData(10, (i) => new Dictionary<string, AttributeValue> {
+                    { "pk", new AttributeValue("ENTITY#0021") },
+                    { "sk", new AttributeValue($"ITEM#{i.ToString("D4")}") },
+                    { "intArray", new AttributeValue { NS = Enumerable.Range(0, i+1).Select(ii => ii.ToString()).ToList()}}
+                }),
+                ExpectedResultCount = 7
+            })
+            {
+                TestName = "EnumerableCountExpression_IntArray"
+            };
+
+            yield return new TestCaseData(new ScanRequestTestCases
+            {
+                Expression = (a) => a.Id == "ENTITY#0022" && Functions.AttributeType(a.IntArray, AttributeType.NS),
+                SeedData = BaseTest.GenerateData(9, (i) =>
+                {
+                    var dict = new Dictionary<string, AttributeValue> {
+                        { "pk", new AttributeValue("ENTITY#0022") },
+                        { "sk", new AttributeValue($"ITEM#{i.ToString("D4")}") },
+                    };
+                    if (i % 4 == 0)
+                    {
+                        dict.Add("intArray", new AttributeValue { NS = Enumerable.Range(i, 5).Select(ii => (ii).ToString()).ToList() });
+                    }
+                    else
+                    {
+                        dict.Add("intArray", new AttributeValue { SS = Enumerable.Range(i, 5).Select(ii => (ii).ToString()).ToList() });
+                    }
+                    return dict;
+                }),
+                ExpectedResultCount = 3
+            })
+            {
+                TestName = "AttributeTypeExpression_IntArray"
+            };
 
         }
     }
