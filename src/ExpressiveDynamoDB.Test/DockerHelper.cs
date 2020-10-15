@@ -17,7 +17,7 @@ namespace ExpressiveDynamoDB.Test
         private static string ImageName = "amazon/dynamodb-local";
         private static string Tag = "latest";
         private static string Port = "8000";
-        private static string EndpointUrl = "http://localhost:8000";
+        private static string EndpointUrl = "http://127.0.0.1:8000";
 
         public static async Task<string> StartDynamoDBAsync()
         {
@@ -40,17 +40,9 @@ namespace ExpressiveDynamoDB.Test
 
             if (container?.State == "running")
             {
+                Console.WriteLine("Docker container was already running");
                 return EndpointUrl;
             }
-
-            //look for image
-            // var image = (await Client.Images.ListImagesAsync(new ImagesListParameters()
-            // {
-            //     MatchName = $"{ImageName}:{Tag}",
-            // }, CancellationToken.None)).FirstOrDefault();
-
-            // if (image == null)
-            //     throw new Exception($"Docker image for {ImageName}:{Tag} not found.");
 
             var containerId = container?.ID;
 
@@ -94,6 +86,7 @@ namespace ExpressiveDynamoDB.Test
                 containerStat = await Client.Containers.InspectContainerAsync(containerId, CancellationToken.None);
             }
 
+            Console.WriteLine("Docker container started!");
             return EndpointUrl;
         }
 
@@ -108,8 +101,8 @@ namespace ExpressiveDynamoDB.Test
             var existingTables = await client.ListTablesAsync();
             if(existingTables.TableNames.Contains(tableName))
             {
-                await client.DeleteTableAsync(tableName);
-                //return false;
+                //await client.DeleteTableAsync(tableName);
+                return false;
             }
             await client.CreateTableAsync(tableName, keySchema, attributeDefinitions, provisionedThroughput);
             return true;

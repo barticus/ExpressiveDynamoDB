@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <PackageId>ExpressiveDynamoDB</PackageId>
     <PackageDescription>A library to assist with the generation of DynamoDB Expressions</PackageDescription>
-    <Version>0.0.4</Version>
+    <Version>0.0.5</Version>
     <Authors>Bart Breen</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/barticus/ExpressiveDynamoDB</RepositoryUrl>

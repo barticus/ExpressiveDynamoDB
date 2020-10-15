@@ -21,8 +21,18 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --configuration Release --no-restore
+    - name: Pull DynamoDB Docker Image
+      run: docker pull amazon/dynamodb-local
     - name: Test
-      run: dotnet test --no-restore --verbosity normal
+      run: |
+        docker run -d -p 8000:8000 amazon/dynamodb-local
+        dotnet test --no-restore --verbosity normal
+      working-directory: src
+      env:
+        AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
     - name: Publish
       uses: brandedoutcast/publish-nuget@v2.5.2
       with:
