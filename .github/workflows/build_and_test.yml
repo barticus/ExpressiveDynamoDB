@@ -26,6 +26,7 @@ jobs:
         docker pull amazon/dynamodb-local
         docker run -d -p 8000:8000 amazon/dynamodb-local
         docker ps
+        aws dynamodb list-tables --region us-east-1 --endpoint-url http://127.0.0.1:8000
         dotnet test
       working-directory: src
       env:

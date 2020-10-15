@@ -17,7 +17,7 @@ namespace ExpressiveDynamoDB.Test
         private static string ImageName = "amazon/dynamodb-local";
         private static string Tag = "latest";
         private static string Port = "8000";
-        private static string EndpointUrl = "http://localhost:8000";
+        private static string EndpointUrl = "http://127.0.0.1:8000";
 
         public static async Task<string> StartDynamoDBAsync()
         {
